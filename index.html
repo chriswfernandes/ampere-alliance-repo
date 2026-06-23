@@ -239,14 +239,14 @@
 <div class="topbar"><div class="wrap">
   <span class="brand-dot"></span><span>Ampere Alliance</span><span class="sep">/</span>
   <span>Acquisition Pipeline</span><span class="sep">/</span><span>E&amp;I · Canada</span>
-  <span class="right"><span class="pill live">Prototype · sample data</span></span>
+  <span class="right"><span class="pill live">Prototype · researched candidates</span></span>
 </div></div>
 
 <header class="hero"><div class="wrap reveal">
   <p class="eyebrow">Target sourcing engine</p>
   <h1>The next <span class="hl">200 targets</span>, scored before the first call.</h1>
   <p class="lede">A repeatable engine for sourcing electrical &amp; instrumentation acquisitions across Canada — ranked against Ampere's own criteria, weighted for strategic fit, mapped, and tuned live. Built to feed a serial acquirer, not to file a report.</p>
-  <p class="byline">Prepared by <b>[Your Name]</b> · for Ampere Alliance · June 2026 · unsolicited, for discussion</p>
+  <p class="byline">Prepared by <b>Chris Fernandes</b> · for Ampere Alliance · June 2026 · unsolicited, for discussion</p>
   <div class="rail">
     <div class="cell"><p class="k">Market structure</p><p class="v">Fragmented <small>↯</small></p>
       <p class="d">Hundreds of owner-operated E&amp;I shops nationwide — the raw material for density-based roll-up.</p></div>
@@ -329,7 +329,7 @@
       <textarea id="paste-text" placeholder="Paste CSV, a Markdown table, or a JSON array here…"></textarea>
       <div style="margin-top:10px"><button class="btn primary" id="paste-load">Load pasted data</button></div>
     </div>
-    <p class="status" id="status">Showing 15 sample targets. Import JSON, CSV, or a Markdown table to add your own.</p>
+    <p class="status" id="status">Showing 8 researched candidate companies (real firms; revenue undisclosed, scores are estimates). Import JSON, CSV, or a Markdown table to add your own.</p>
     <p class="hint">Columns: <code>name, city, prov, seg, rev, proven, aligned, scalable, ambitious, succession, fit, why</code>. Optional <code>lat, lng</code> for exact placement (otherwise the city is located automatically). Scores are 0–100; rows missing scores still load and are flagged <span class="partial">partial</span>.</p>
   </div>
 
@@ -374,36 +374,34 @@
     <div class="step"><span class="n">05</span><h4>Stage</h4><p>Top tier routes to operational diligence and a templated Day 1–100 onboarding — the repeatable part.</p></div>
   </div>
   <div class="scale-note">
-    The companies shown are <b>illustrative sample data</b> built to demonstrate the engine, not verified diligence. The enrich step — turning messy notes or a directory into clean, scored rows — is where AI does the heavy lifting; the import panel above is where that output lands. <b>Point me at Ampere's real funnel and the criteria that matter to you, and I'll fill this with live, scored targets.</b>
+    The companies shown are <b>real, publicly-known Western Canadian E&amp;I firms</b> researched as illustrative acquisition candidates — revenue is left undisclosed and the scores are independent estimates, not verified diligence. The enrich step — turning messy notes or a directory into clean, scored rows — is where AI does the heavy lifting; the import panel above is where that output lands. <b>Point me at Ampere's real funnel and the criteria that matter to you, and I'll fill this with live, scored targets.</b>
   </div>
 </div></section>
 
 <footer><div class="wrap">
-  <p class="disc"><b>Illustrative prototype.</b> Company names, locations, financials, and scores are synthetic sample data created to demonstrate a sourcing-and-scoring methodology. They are not real companies, not verified diligence, and not investment advice. Built independently for discussion. Portfolio figures attributed to Ampere Alliance reflect the company's own publicly published case studies.</p>
+  <p class="disc"><b>Illustrative prototype.</b> Company names, locations, and segments are real and drawn from public sources; revenue is not disclosed and the 0–100 scores are <b>independent estimates and opinions</b> created to demonstrate a sourcing-and-scoring methodology. No financial, ownership, or sale-status claims are made about these firms. They are not verified diligence and not investment advice, and the firms shown have not been contacted and are not affiliated with or endorsed by this analysis or Ampere Alliance. Built independently for discussion. Portfolio figures attributed to Ampere Alliance reflect the company's own publicly published case studies.</p>
   <p class="fmark">Ampere<span>·</span>Pipeline</p>
 </div></footer>
 
 <script>
 /* ===========================================================================
-   EDIT ME — your roster. Synthetic sample data; replace with real research.
+   EDIT ME — your roster. Real, publicly-known E&I companies in Western Canada
+   that are NOT in Ampere's portfolio, researched as illustrative acquisition
+   candidates. Company names, locations and segments are from public sources.
+   Revenue is left "Undisclosed" (these are private firms) and the 0–100 scores
+   are INDEPENDENT ESTIMATES for demonstration — not verified diligence, not
+   endorsed by or affiliated with these firms.
    Scores 0–100. Add lat/lng for precise placement; otherwise city is geocoded.
    =========================================================================== */
 const seed = [
-  {name:"Northgate Switchgear Ltd.", city:"Edmonton", prov:"AB", seg:"Switchgear & substation mfg", rev:"$15–25M", revMid:20, s:{proven:88,aligned:72,scalable:85,ambitious:70,succession:80,fit:92}, why:"Captive switchgear capacity to feed Boundary's data-centre backlog — a vertical-integration play on the binding constraint."},
-  {name:"Cascade High-Voltage Services", city:"Kamloops", prov:"BC", seg:"HV field service & testing", rev:"$8–15M", revMid:12, s:{proven:82,aligned:78,scalable:80,ambitious:75,succession:85,fit:88}, why:"Mirrors Axium's HV maintenance model in the BC interior — recurring-revenue density bolt-on."},
-  {name:"Prairie Instrumentation Group", city:"Saskatoon", prov:"SK", seg:"Instrumentation & calibration", rev:"$5–10M", revMid:8, s:{proven:80,aligned:80,scalable:78,ambitious:68,succession:78,fit:84}, why:"Calibration depth Sabre lacks; anchors a Saskatchewan instrumentation hub."},
-  {name:"Meridian Power Systems", city:"Calgary", prov:"AB", seg:"Power systems eng. / panels", rev:"$10–20M", revMid:15, s:{proven:85,aligned:70,scalable:82,ambitious:80,succession:60,fit:86}, why:"Control-panel engineering that extends Valid's product line upstream into higher-margin design."},
-  {name:"Cornerstone Electric Contractors", city:"Red Deer", prov:"AB", seg:"Commercial / industrial electrical", rev:"$20–35M", revMid:28, s:{proven:86,aligned:75,scalable:76,ambitious:65,succession:72,fit:80}, why:"Largest independent EC in central Alberta — a natural Summit add-on closing the Calgary–Edmonton corridor."},
-  {name:"Athabasca Field Electric", city:"Fort McMurray", prov:"AB", seg:"Industrial field electrical (energy)", rev:"$25–40M", revMid:33, s:{proven:84,aligned:68,scalable:74,ambitious:72,succession:66,fit:82}, why:"Energy-sector field crews adjacent to Sabre's industrial base; scale, but tighter cultural diligence."},
-  {name:"Kootenay Transformer Works", city:"Trail", prov:"BC", seg:"Transformer mfg & repair", rev:"$8–15M", revMid:12, s:{proven:80,aligned:82,scalable:78,ambitious:64,succession:88,fit:90}, why:"Transformer build/repair in Boundary's own backyard; strong succession signal, clean strategic fit."},
-  {name:"Selkirk Substation Co.", city:"Prince George", prov:"BC", seg:"Substation construction", rev:"$12–22M", revMid:17, s:{proven:78,aligned:74,scalable:80,ambitious:70,succession:70,fit:83}, why:"Substation EPC capacity to convert Boundary's gear into turnkey scope."},
-  {name:"Assiniboine Electrical", city:"Winnipeg", prov:"MB", seg:"Commercial electrical + service", rev:"$15–28M", revMid:22, s:{proven:82,aligned:72,scalable:72,ambitious:66,succession:75,fit:70}, why:"Manitoba beachhead — a new province with an established service book, lower direct cross-sell."},
-  {name:"Bow Valley Controls", city:"Calgary", prov:"AB", seg:"Industrial controls & automation", rev:"$6–12M", revMid:9, s:{proven:76,aligned:80,scalable:84,ambitious:82,succession:58,fit:78}, why:"Automation talent to push Valid and Sabre toward higher-margin controls; founder not yet exit-ready."},
-  {name:"Coulee Power & Instrumentation", city:"Estevan", prov:"SK", seg:"E&I services (oil & gas)", rev:"$10–18M", revMid:14, s:{proven:80,aligned:70,scalable:70,ambitious:64,succession:82,fit:81}, why:"Oilfield E&I service that slots directly into Sabre's core market; strong owner-readiness signal."},
-  {name:"Summit Pass Datacenter Electric", city:"Kelowna", prov:"BC", seg:"Data-centre electrical specialist", rev:"$8–16M", revMid:12, s:{proven:70,aligned:76,scalable:90,ambitious:88,succession:50,fit:91}, why:"Pure data-centre electrical play — highest growth and fit, thinnest track record. An incubate-and-scale bet."},
-  {name:"Frontier Line Services", city:"Grande Prairie", prov:"AB", seg:"Utility line (OH/UG)", rev:"$18–30M", revMid:24, s:{proven:80,aligned:66,scalable:74,ambitious:70,succession:68,fit:64}, why:"Utility line work — a new capability further from current portfolio fit. Watch, don't chase."},
-  {name:"Cascadia Power Solutions", city:"Spokane", prov:"US", seg:"Switchgear integration", rev:"$20–40M", revMid:33, s:{proven:84,aligned:64,scalable:86,ambitious:78,succession:55,fit:76}, why:"US Pacific-NW entry point for the 'North America' ambition; cross-border integration adds complexity."},
-  {name:"Riverstone Electric & Instrumentation", city:"Regina", prov:"SK", seg:"E&I contracting", rev:"$7–14M", revMid:11, s:{proven:78,aligned:84,scalable:76,ambitious:66,succession:84,fit:85}, why:"Values-aligned founder open to an equity roll; Saskatchewan density plus Sabre cross-sell."},
+  {name:"PTI Transformers", city:"Regina", prov:"SK", seg:"Transformer manufacturing", rev:"Undisclosed", s:{proven:90,aligned:72,scalable:86,ambitious:74,succession:62,fit:93}, why:"Canada's largest 100%-Canadian-owned transformer maker (Regina + Winnipeg, 100+ staff) — captive transformer capacity to vertically integrate with Boundary and feed data-centre demand."},
+  {name:"ModX Engineering Inc.", city:"Calgary", prov:"AB", seg:"Modular switchgear & E-Houses", rev:"Undisclosed", s:{proven:72,aligned:78,scalable:90,ambitious:88,succession:55,fit:90}, why:"Calgary-built modular switchgear, switchboards and prefabricated E-Houses with 12–16 week lead times — a direct play on Ampere's high-performance-computing and data-centre thesis."},
+  {name:"REV Engineering Ltd.", city:"Calgary", prov:"AB", seg:"LV/MV/HV switchgear mfg", rev:"Undisclosed", s:{proven:84,aligned:74,scalable:82,ambitious:72,succession:64,fit:88}, why:"ETL-certified metal-clad switchgear with in-house busbar fabrication — complements Boundary's manufacturing and Summit's project delivery in the Calgary corridor."},
+  {name:"RIC Power Corp.", city:"Burnaby", prov:"BC", lat:49.25, lng:-122.98, seg:"Custom switchgear manufacturing", rev:"Undisclosed", s:{proven:78,aligned:72,scalable:80,ambitious:74,succession:58,fit:82}, why:"Custom switchgear with fast approvals out of Burnaby — a Lower-Mainland manufacturing beachhead extending Boundary's BC footprint toward the coast."},
+  {name:"Pronghorn Controls Ltd.", city:"Calgary", prov:"AB", seg:"E&I services (oil & gas)", rev:"Undisclosed", s:{proven:86,aligned:70,scalable:76,ambitious:66,succession:70,fit:84}, why:"40+ year privately held E&I contractor across Western Canada — scale and recurring industrial service that slots directly alongside Sabre and Westcan."},
+  {name:"Supreme Instrument & Electrical Services Ltd.", city:"Fort Saskatchewan", prov:"AB", lat:53.71, lng:-113.21, seg:"Instrumentation & calibration", rev:"Undisclosed", s:{proven:82,aligned:80,scalable:72,ambitious:62,succession:85,fit:86}, why:"45-year instrumentation/calibration shop in Alberta's Industrial Heartland — calibration depth that complements Sabre's E&I services."},
+  {name:"Western High Voltage Test Centre", city:"Calgary", prov:"AB", seg:"HV testing & live-line", rev:"Undisclosed", s:{proven:84,aligned:82,scalable:74,ambitious:64,succession:80,fit:90}, why:"30+ year independent HV live-line testing programs (30,000+ tools/yr) for major utilities — recurring-revenue density that mirrors Axium's maintenance model."},
+  {name:"Contact Instruments", city:"Leduc", prov:"AB", lat:53.26, lng:-113.55, seg:"Accredited calibration lab", rev:"Undisclosed", s:{proven:78,aligned:80,scalable:78,ambitious:72,succession:66,fit:83}, why:"Accredited lab plus mobile calibration units across Western Canada — extends instrumentation services and shared-services leverage across Sabre and Supreme."},
 ];
 
 /* ---------- geography: city lookup + province fallbacks ---------- */
