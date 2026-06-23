@@ -1,0 +1,20 @@
+[
+  {
+    "name": "Example Electric Ltd.",
+    "city": "Toronto",
+    "prov": "ON",
+    "seg": "Commercial electrical",
+    "rev": "$10–20M",
+    "lat": null,
+    "lng": null,
+    "s": {
+      "proven": 80,
+      "aligned": 75,
+      "scalable": 78,
+      "ambitious": 70,
+      "succession": 72,
+      "fit": 82
+    },
+    "why": "One-line reason this is a fit."
+  }
+]

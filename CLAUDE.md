@@ -15,9 +15,14 @@ The entire app lives in one file: **`index.html`** (HTML + CSS + vanilla JS, no 
 
 ```
 .
-├── index.html   # the entire application (markup, styles, and logic)
-└── CLAUDE.md    # this file
+├── index.html      # the entire application (markup, styles, and logic)
+├── templates/      # downloadable upload templates (CSV / Markdown / JSON) + README
+└── CLAUDE.md       # this file
 ```
+
+The files in `templates/` mirror the inline `TPL` object in `index.html` (the
+"Templates ▾" menu). If you change the template content or the data shape in one
+place, update the other so they stay in sync.
 
 There is intentionally **no** package manager, bundler, framework, or build pipeline.
 Do not add one unless the user explicitly asks. Keep the project as a single

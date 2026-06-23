@@ -1,0 +1,3 @@
+| name | city | prov | seg | rev | proven | aligned | scalable | ambitious | succession | fit | why |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Example Electric Ltd. | Toronto | ON | Commercial electrical | $10–20M | 80 | 75 | 78 | 70 | 72 | 82 | One-line reason this is a fit. |
