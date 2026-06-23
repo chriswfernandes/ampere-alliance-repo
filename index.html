@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  AMPERE ALLIANCE — E&I ACQUISITION PIPELINE (working prototype)
+  ============================================================================
+  Single self-contained file. Drop into a GitHub Pages repo as index.html.
+  External libs (load at view time): Google Fonts + Leaflet (map).
+
+  ADDING COMPANIES — THREE WAYS
+  -----------------------------
+  1. IN-BROWSER IMPORT (no code): use the "Load your own targets" panel.
+     Accepts JSON, CSV, or a Markdown table. Data lives in that session.
+  2. PERSISTENT (recommended for the live site): keep your roster in the
+     EDIT-ME block below (the `seed` array) and commit it. It loads every
+     time and is shared with everyone who opens the page.
+  3. ROUND-TRIP: import a file, tweak, then "Export current" to download a
+     clean JSON you can paste back into `seed` or re-import later.
+
+  DATA SHAPE (per company)
+  ------------------------
+    name, city, prov, seg, rev,        // text
+    proven, aligned, scalable,         // scores 0–100
+    ambitious, succession, fit,        // scores 0–100
+    why,                               // one-line rationale
+    lat, lng (optional)                // exact placement; else city is geocoded
+
+  Province codes: BC AB SK MB ON QC NB NS PE NL YT NT NU (US also supported).
+  Cities are auto-located from a built-in lookup; add lat/lng for precision
+  or for a town that isn't in the lookup.
+
+  DEPLOY: new repo -> add as index.html -> Settings > Pages > Deploy from a
+  branch > main / root. Live at https://<user>.github.io/<repo>/
+  ============================================================================
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ampere Alliance — E&I Acquisition Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{
+    --paper:#eef2f7; --paper-2:#f7f9fc; --ink:#0c1b29; --ink-soft:#3c5066; --ink-faint:#7d8ea0;
+    --line:#cdd8e4; --line-soft:#dde5ee;
+    --blue:#0340f8; --blue-deep:#0227a3; --blue-wash:#e4eafe;
+    --amber:#d97a1f; --amber-wash:#fbeede;
+    --t1:#0340f8; --t2:#5b7fd6; --t3:#9aabbf; --good:#1f8a5b;
+    --shadow:0 1px 0 rgba(12,27,41,.04), 0 12px 30px -18px rgba(12,27,41,.35);
+    --r:10px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink);
+    background:linear-gradient(var(--line-soft) 1px,transparent 1px) 0 0/100% 28px,
+      linear-gradient(90deg,var(--line-soft) 1px,transparent 1px) 0 0/28px 100%,var(--paper);
+    line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 22px}
+
+  .topbar{border-bottom:1px solid var(--line);background:rgba(247,249,252,.86);backdrop-filter:saturate(140%) blur(6px);
+    position:sticky;top:0;z-index:1000}
+  .topbar .wrap{display:flex;align-items:center;gap:14px;height:46px;font-family:"IBM Plex Mono",monospace;font-size:11.5px;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+  .brand-dot{width:9px;height:9px;border-radius:2px;background:var(--blue);box-shadow:0 0 0 3px var(--blue-wash);flex:none}
+  .topbar .sep{color:var(--line)}
+  .topbar .right{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .pill{border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--ink-soft);background:#fff}
+  .pill.live{border-color:var(--amber);color:var(--amber);background:var(--amber-wash)}
+
+  .hero{padding:64px 0 30px}
+  .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--blue);
+    margin:0 0 18px;display:flex;align-items:center;gap:10px}
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--blue)}
+  h1{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:clamp(32px,5.2vw,58px);line-height:1.02;
+    letter-spacing:-.02em;margin:0 0 20px;max-width:16ch}
+  h1 .hl{color:var(--blue)}
+  .lede{font-size:clamp(16px,1.7vw,19px);color:var(--ink-soft);max-width:60ch;margin:0}
+  .byline{margin-top:26px;font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--ink-faint);letter-spacing:.03em}
+  .byline b{color:var(--ink-soft);font-weight:500}
+
+  .rail{display:grid;grid-template-columns:repeat(3,1fr);margin-top:40px;border:1px solid var(--line);border-radius:var(--r);
+    overflow:hidden;background:#fff}
+  .rail .cell{padding:20px 22px;border-right:1px solid var(--line-soft)}
+  .rail .cell:last-child{border-right:0}
+  .rail .k{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px}
+  .rail .v{font-family:"Space Grotesk",sans-serif;font-weight:600;font-size:26px;letter-spacing:-.01em;margin:0 0 6px;color:var(--ink)}
+  .rail .v small{font-size:14px;color:var(--blue);font-weight:600}
+  .rail .d{font-size:13px;color:var(--ink-soft);margin:0}
+
+  section.block{padding:54px 0;border-top:1px solid var(--line-soft)}
+  .sec-head{display:flex;align-items:baseline;gap:16px;margin-bottom:26px;flex-wrap:wrap}
+  .sec-tag{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--blue)}
+  .sec-title{font-family:"Space Grotesk",sans-serif;font-weight:600;font-size:clamp(22px,2.6vw,30px);letter-spacing:-.01em;margin:0}
+  .sec-note{margin-left:auto;font-size:13px;color:var(--ink-faint);max-width:42ch}
+
+  .platform{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .pc{border:1px solid var(--line);border-radius:var(--r);background:#fff;padding:18px 18px 16px;position:relative;overflow:hidden}
+  .pc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blue)}
+  .pc h3{font-family:"Space Grotesk",sans-serif;font-size:16px;margin:0 0 2px;letter-spacing:-.01em}
+  .pc .seg{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.05em;color:var(--ink-faint);text-transform:uppercase;margin:0 0 12px}
+  .pc .growth{display:flex;align-items:baseline;gap:8px;margin:0}
+  .pc .growth .num{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:24px;color:var(--good)}
+  .pc .growth .lab{font-size:12px;color:var(--ink-soft)}
+  .pc .sub{font-size:12.5px;color:var(--ink-soft);margin:8px 0 0}
+  .platform .note{grid-column:1/-1;font-size:12.5px;color:var(--ink-faint);font-family:"IBM Plex Mono",monospace;margin-top:2px}
+
+  .model-card{border:1px solid var(--line);border-radius:var(--r);background:#fff;padding:22px}
+  .sliders{display:grid;grid-template-columns:repeat(2,1fr);gap:18px 28px}
+  .slider .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
+  .slider .name{font-size:13.5px;font-weight:600;color:var(--ink)}
+  .slider .desc{font-size:11.5px;color:var(--ink-faint);display:block;margin-top:1px;font-weight:400}
+  .slider .pct{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--blue);font-weight:500;min-width:42px;text-align:right}
+  input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:4px;border-radius:4px;
+    background:linear-gradient(90deg,var(--blue) var(--fill,40%),var(--line) var(--fill,40%));cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;
+    background:#fff;border:2px solid var(--blue);box-shadow:0 1px 3px rgba(3,64,248,.4)}
+  input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid var(--blue);box-shadow:0 1px 3px rgba(3,64,248,.4)}
+  .model-foot{display:flex;align-items:center;gap:14px;margin-top:20px;flex-wrap:wrap}
+  .btn{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.04em;text-transform:uppercase;border:1px solid var(--line);
+    background:#fff;color:var(--ink-soft);padding:8px 14px;border-radius:7px;cursor:pointer}
+  .btn:hover{border-color:var(--blue);color:var(--blue)}
+  .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+  .btn.primary:hover{background:var(--blue-deep);border-color:var(--blue-deep);color:#fff}
+  .model-foot .tot{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint);margin-left:auto}
+
+  /* import panel */
+  .import{border:1px solid var(--line);border-radius:var(--r);background:#fff;padding:16px 18px;margin-bottom:20px}
+  .ih{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .ih .title{font-family:"Space Grotesk",sans-serif;font-weight:600;font-size:15px;margin-right:auto}
+  .filebtn{position:relative;overflow:hidden;display:inline-flex;align-items:center;gap:7px}
+  .filebtn input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0;width:100%;height:100%}
+  .seg-toggle{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;font-family:"IBM Plex Mono",monospace;
+    font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  .seg-toggle button{border:0;background:#fff;color:var(--ink-soft);padding:8px 12px;cursor:pointer}
+  .seg-toggle button[aria-pressed=true]{background:var(--blue-wash);color:var(--blue-deep)}
+  .menu{position:relative}
+  .menu-list{position:absolute;top:calc(100% + 6px);left:0;background:#fff;border:1px solid var(--line);border-radius:8px;
+    box-shadow:var(--shadow);padding:6px;display:none;z-index:30;min-width:210px}
+  .menu-list.open{display:block}
+  .menu-list button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:8px 10px;border-radius:6px;
+    font-family:inherit;font-size:13px;color:var(--ink);cursor:pointer;text-transform:none;letter-spacing:0}
+  .menu-list button:hover{background:var(--paper-2)}
+  .paste{margin-top:12px;display:none}
+  .paste.open{display:block}
+  .paste textarea{width:100%;min-height:120px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;
+    font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:var(--ink);resize:vertical}
+  .status{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-soft);margin:12px 0 0}
+  .status.err{color:#b4341f}
+  .hint{font-size:12px;color:var(--ink-faint);margin:8px 0 0;line-height:1.7}
+  .hint code{font-family:"IBM Plex Mono",monospace;background:var(--paper-2);border:1px solid var(--line-soft);padding:1px 5px;border-radius:4px;font-size:11.5px}
+
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:20px}
+  .search{flex:1;min-width:200px;display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 12px}
+  .search input{border:0;outline:0;flex:1;font-family:inherit;font-size:14px;color:var(--ink);background:transparent}
+  .search svg{flex:none;color:var(--ink-faint)}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.03em;text-transform:uppercase;border:1px solid var(--line);
+    background:#fff;color:var(--ink-soft);padding:6px 11px;border-radius:999px;cursor:pointer;transition:all .12s}
+  .chip[aria-pressed=true]{background:var(--blue);border-color:var(--blue);color:#fff}
+  .chip:focus-visible,.btn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+  select.sort{font-family:"IBM Plex Mono",monospace;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;border:1px solid var(--line);
+    background:#fff;color:var(--ink-soft);padding:7px 10px;border-radius:8px;cursor:pointer}
+
+  .pipe{display:grid;grid-template-columns:1.35fr 1fr;gap:22px;align-items:start}
+  .board{display:flex;flex-direction:column;gap:10px}
+  .row{border:1px solid var(--line);border-radius:var(--r);background:#fff;padding:14px 16px;cursor:pointer;
+    transition:border-color .12s,box-shadow .12s;position:relative}
+  .row:hover,.row.active,.row.hl{border-color:var(--blue);box-shadow:var(--shadow)}
+  .row .head{display:flex;align-items:center;gap:12px}
+  .rank{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-faint);min-width:24px}
+  .tier{width:8px;height:8px;border-radius:2px;flex:none}
+  .row h4{font-family:"Space Grotesk",sans-serif;font-size:15.5px;margin:0;letter-spacing:-.01em;font-weight:600}
+  .row .loc{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em}
+  .partial{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--amber);
+    border:1px dashed var(--amber);border-radius:999px;padding:2px 6px;margin-left:8px;vertical-align:middle}
+  .row .meta{margin-left:auto;display:flex;align-items:center;gap:14px}
+  .succ{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;padding:3px 8px;border-radius:999px;
+    border:1px solid var(--line-soft);color:var(--ink-faint)}
+  .succ.hi{background:var(--amber-wash);border-color:var(--amber);color:var(--amber)}
+  .score{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:20px;min-width:34px;text-align:right}
+  .row .seg{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em;margin:8px 0 0 36px}
+  .detail{margin:12px 0 2px 36px;display:none}
+  .row.active .detail{display:block}
+  .rationale{font-size:13.5px;color:var(--ink-soft);margin:0 0 12px;max-width:60ch}
+  .bars{display:grid;grid-template-columns:repeat(3,1fr);gap:8px 18px;max-width:520px}
+  .bar{display:flex;align-items:center;gap:8px}
+  .bar .bl{font-family:"IBM Plex Mono",monospace;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-faint);min-width:64px}
+  .bar .track{flex:1;height:4px;border-radius:4px;background:var(--line-soft);overflow:hidden}
+  .bar .fillb{height:100%;background:var(--blue);border-radius:4px}
+  .bar .bv{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-soft);min-width:20px;text-align:right}
+  .empty{border:1px dashed var(--line);border-radius:var(--r);padding:30px;text-align:center;color:var(--ink-faint);font-size:14px}
+
+  .mapwrap{position:sticky;top:64px;border:1px solid var(--line);border-radius:var(--r);background:#fff;padding:14px;overflow:hidden}
+  .maphead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .maphead .t{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint)}
+  #map{height:470px;border-radius:8px;overflow:hidden;background:var(--paper-2);z-index:1}
+  .map-fallback{display:flex;align-items:center;justify-content:center;height:100%;color:var(--ink-faint);font-size:13px;text-align:center;padding:20px}
+  .leaflet-container{font-family:"IBM Plex Sans",sans-serif;background:var(--paper-2)}
+  .leaflet-tooltip{font-family:"IBM Plex Mono",monospace;font-size:11px;border:1px solid var(--line);color:var(--ink);box-shadow:var(--shadow)}
+  .legend{display:flex;gap:12px;font-family:"IBM Plex Mono",monospace;font-size:10px;text-transform:uppercase;letter-spacing:.04em;
+    color:var(--ink-soft);margin-top:10px;flex-wrap:wrap}
+  .legend span{display:flex;align-items:center;gap:5px}
+  .legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
+  .legend i.ring{background:#fff;border:2px solid var(--amber)}
+
+  .steps{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:#fff}
+  .step{padding:18px 16px;border-right:1px solid var(--line-soft)}
+  .step:last-child{border-right:0}
+  .step .n{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--blue);letter-spacing:.1em}
+  .step h4{font-family:"Space Grotesk",sans-serif;font-size:15px;margin:8px 0 6px;letter-spacing:-.01em}
+  .step p{font-size:12.5px;color:var(--ink-soft);margin:0}
+  .scale-note{margin-top:20px;border-left:3px solid var(--blue);background:var(--blue-wash);border-radius:0 var(--r) var(--r) 0;
+    padding:16px 20px;font-size:14.5px;color:var(--ink);max-width:74ch}
+  .scale-note b{color:var(--blue-deep)}
+
+  footer{border-top:1px solid var(--line);padding:34px 0 60px;margin-top:20px}
+  footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}
+  .disc{font-size:12px;color:var(--ink-faint);max-width:62ch;line-height:1.6}
+  .disc b{color:var(--ink-soft);font-weight:600}
+  .fmark{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:15px;letter-spacing:-.01em}
+  .fmark span{color:var(--blue)}
+
+  .reveal{opacity:0;transform:translateY(10px);animation:rise .6s ease forwards}
+  @keyframes rise{to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.reveal{animation:none;opacity:1;transform:none}html{scroll-behavior:auto}}
+  @media (max-width:900px){
+    .rail{grid-template-columns:1fr}.rail .cell{border-right:0;border-bottom:1px solid var(--line-soft)}
+    .platform{grid-template-columns:1fr}.sliders{grid-template-columns:1fr}.pipe{grid-template-columns:1fr}
+    .mapwrap{position:static}.steps{grid-template-columns:1fr}.step{border-right:0;border-bottom:1px solid var(--line-soft)}
+    .bars{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="wrap">
+  <span class="brand-dot"></span><span>Ampere Alliance</span><span class="sep">/</span>
+  <span>Acquisition Pipeline</span><span class="sep">/</span><span>E&amp;I · Canada</span>
+  <span class="right"><span class="pill live">Prototype · sample data</span></span>
+</div></div>
+
+<header class="hero"><div class="wrap reveal">
+  <p class="eyebrow">Target sourcing engine</p>
+  <h1>The next <span class="hl">200 targets</span>, scored before the first call.</h1>
+  <p class="lede">A repeatable engine for sourcing electrical &amp; instrumentation acquisitions across Canada — ranked against Ampere's own criteria, weighted for strategic fit, mapped, and tuned live. Built to feed a serial acquirer, not to file a report.</p>
+  <p class="byline">Prepared by <b>[Your Name]</b> · for Ampere Alliance · June 2026 · unsolicited, for discussion</p>
+  <div class="rail">
+    <div class="cell"><p class="k">Market structure</p><p class="v">Fragmented <small>↯</small></p>
+      <p class="d">Hundreds of owner-operated E&amp;I shops nationwide — the raw material for density-based roll-up.</p></div>
+    <div class="cell"><p class="k">Timing signal</p><p class="v">Succession wave</p>
+      <p class="d">A generation of founders reaching exit age with no internal successor — the durable supply behind every trades roll-up.</p></div>
+    <div class="cell"><p class="k">Demand pull</p><p class="v">~$150B/yr <small>electrify</small></p>
+      <p class="d">Data centres, grid and electrification spend turning E&amp;I capacity into the scarce input.</p></div>
+  </div>
+</div></header>
+
+<section class="block"><div class="wrap">
+  <div class="sec-head"><span class="sec-tag">Platform</span>
+    <h2 class="sec-title">The capability map I'm sourcing against</h2>
+    <p class="sec-note">Every target is scored on how it extends what Ampere already owns — and the whitespace it doesn't.</p></div>
+  <div class="platform">
+    <div class="pc"><h3>Sabre</h3><p class="seg">E&amp;I services · industrial / energy</p>
+      <p class="growth"><span class="num">+275%</span><span class="lab">$8M → $70M since AA</span></p>
+      <p class="sub">Anchor services platform. Five divisions, ISO 9001. The base most field-service add-ons plug into.</p></div>
+    <div class="pc"><h3>Boundary Electric</h3><p class="seg">Transformers · switchgear · data centre</p>
+      <p class="growth"><span class="num">+100%</span><span class="lab">doubled in year 1 · &gt;$100M '25E</span></p>
+      <p class="sub">The product engine behind the data-centre thesis. Capacity here is the binding constraint to scale.</p></div>
+    <div class="pc"><h3>Summit Electric</h3><p class="seg">Commercial / industrial electrical</p>
+      <p class="growth"><span class="num">+105%</span><span class="lab">$22M → $45M since AA</span></p>
+      <p class="sub">Install muscle in Western Canada. The model EC add-ons are measured against.</p></div>
+    <div class="pc"><h3>Axium Power</h3><p class="seg">HV/MV maintenance · 24/7 service</p>
+      <p class="growth"><span class="num">Service</span><span class="lab">recurring revenue layer</span></p>
+      <p class="sub">Transformer lifecycle &amp; emergency support. Recurring book that de-risks the cyclicals.</p></div>
+    <div class="pc"><h3>Valid Manufacturing</h3><p class="seg">Control panels · power systems</p>
+      <p class="growth"><span class="num">30+ yrs</span><span class="lab">engineered products</span></p>
+      <p class="sub">Panels, kiosks, water/wastewater &amp; vehicle systems. Pulls the group up the value chain.</p></div>
+    <div class="pc"><h3>Westcan Power</h3><p class="seg">Electrical field services · Calgary</p>
+      <p class="growth"><span class="num">Newest</span><span class="lab">field-service density</span></p>
+      <p class="sub">Latest addition. Signals appetite for regional field-service density — the lane most of this pipeline sits in.</p></div>
+    <p class="note">// Portfolio figures are Ampere's own published case-study numbers. Capabilities define the cross-sell logic each target is scored on.</p>
+  </div>
+</div></section>
+
+<section class="block"><div class="wrap">
+  <div class="sec-head"><span class="sec-tag">Model</span>
+    <h2 class="sec-title">Tune the thesis. The pipeline re-ranks.</h2>
+    <p class="sec-note">Six factors, your weights. Move a slider and every target re-scores and re-sorts in real time.</p></div>
+  <div class="model-card">
+    <div class="sliders" id="sliders"></div>
+    <div class="model-foot">
+      <button class="btn" id="reset">Reset to default</button>
+      <button class="btn" id="preset-fit">Bias: strategic fit</button>
+      <button class="btn" id="preset-succ">Bias: succession</button>
+      <span class="tot" id="total">weights = 100%</span>
+    </div>
+  </div>
+</div></section>
+
+<section class="block"><div class="wrap">
+  <div class="sec-head"><span class="sec-tag">Pipeline</span>
+    <h2 class="sec-title">Scored targets</h2>
+    <p class="sec-note" id="count">—</p></div>
+
+  <div class="import">
+    <div class="ih">
+      <span class="title">Load your own targets</span>
+      <label class="btn primary filebtn">+ Import file
+        <input type="file" id="file" accept=".json,.csv,.md,.markdown,.txt" />
+      </label>
+      <button class="btn" id="paste-toggle">Paste data</button>
+      <div class="menu">
+        <button class="btn" id="tpl-toggle">Templates ▾</button>
+        <div class="menu-list" id="tpl-menu">
+          <button data-tpl="csv">Download CSV template</button>
+          <button data-tpl="md">Download Markdown template</button>
+          <button data-tpl="json">Download JSON template</button>
+        </div>
+      </div>
+      <button class="btn" id="export">Export current ↓</button>
+      <span class="seg-toggle" role="group" aria-label="Import mode">
+        <button id="mode-append" aria-pressed="true">Append</button>
+        <button id="mode-replace" aria-pressed="false">Replace</button>
+      </span>
+    </div>
+    <div class="paste" id="paste-area">
+      <textarea id="paste-text" placeholder="Paste CSV, a Markdown table, or a JSON array here…"></textarea>
+      <div style="margin-top:10px"><button class="btn primary" id="paste-load">Load pasted data</button></div>
+    </div>
+    <p class="status" id="status">Showing 15 sample targets. Import JSON, CSV, or a Markdown table to add your own.</p>
+    <p class="hint">Columns: <code>name, city, prov, seg, rev, proven, aligned, scalable, ambitious, succession, fit, why</code>. Optional <code>lat, lng</code> for exact placement (otherwise the city is located automatically). Scores are 0–100; rows missing scores still load and are flagged <span class="partial">partial</span>.</p>
+  </div>
+
+  <div class="controls">
+    <label class="search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="q" type="text" placeholder="Search name, city, segment…" aria-label="Search targets" />
+    </label>
+    <div class="chips" id="prov-chips" aria-label="Filter by province"></div>
+    <div class="chips" id="tier-chips" aria-label="Filter by tier"></div>
+    <select class="sort" id="sort" aria-label="Sort targets">
+      <option value="score">Sort: composite ↓</option>
+      <option value="succession">Sort: succession ↓</option>
+      <option value="revMid">Sort: revenue ↓</option>
+      <option value="name">Sort: name A–Z</option>
+    </select>
+  </div>
+
+  <div class="pipe">
+    <div class="board" id="board"></div>
+    <aside class="mapwrap">
+      <div class="maphead"><span class="t">Where they are</span><span class="t" id="map-count">—</span></div>
+      <div id="map"></div>
+      <div class="legend">
+        <span><i style="background:var(--t1)"></i>Tier 1</span>
+        <span><i style="background:var(--t2)"></i>Tier 2</span>
+        <span><i style="background:var(--t3)"></i>Tier 3</span>
+        <span><i class="ring"></i>succession signal</span>
+      </div>
+    </aside>
+  </div>
+</div></section>
+
+<section class="block"><div class="wrap">
+  <div class="sec-head"><span class="sec-tag">Method</span>
+    <h2 class="sec-title">How the scan runs — and how it scales to 200+</h2></div>
+  <div class="steps">
+    <div class="step"><span class="n">01</span><h4>Source</h4><p>Corporate registries, trade associations, certification &amp; bonding lists, LinkedIn, and regional news — swept for E&amp;I firms in target geographies.</p></div>
+    <div class="step"><span class="n">02</span><h4>Enrich</h4><p>Each firm matched to segment, revenue band, ownership tenure, and public succession cues, then deduplicated against the portfolio.</p></div>
+    <div class="step"><span class="n">03</span><h4>Score</h4><p>Six-factor model applied — the same weights you set above — turning a list into a ranked, comparable pipeline.</p></div>
+    <div class="step"><span class="n">04</span><h4>Rank</h4><p>Composite score, tier, and territory density surface the handful worth a partner's time first.</p></div>
+    <div class="step"><span class="n">05</span><h4>Stage</h4><p>Top tier routes to operational diligence and a templated Day 1–100 onboarding — the repeatable part.</p></div>
+  </div>
+  <div class="scale-note">
+    The companies shown are <b>illustrative sample data</b> built to demonstrate the engine, not verified diligence. The enrich step — turning messy notes or a directory into clean, scored rows — is where AI does the heavy lifting; the import panel above is where that output lands. <b>Point me at Ampere's real funnel and the criteria that matter to you, and I'll fill this with live, scored targets.</b>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  <p class="disc"><b>Illustrative prototype.</b> Company names, locations, financials, and scores are synthetic sample data created to demonstrate a sourcing-and-scoring methodology. They are not real companies, not verified diligence, and not investment advice. Built independently for discussion. Portfolio figures attributed to Ampere Alliance reflect the company's own publicly published case studies.</p>
+  <p class="fmark">Ampere<span>·</span>Pipeline</p>
+</div></footer>
+
+<script>
+/* ===========================================================================
+   EDIT ME — your roster. Synthetic sample data; replace with real research.
+   Scores 0–100. Add lat/lng for precise placement; otherwise city is geocoded.
+   =========================================================================== */
+const seed = [
+  {name:"Northgate Switchgear Ltd.", city:"Edmonton", prov:"AB", seg:"Switchgear & substation mfg", rev:"$15–25M", revMid:20, s:{proven:88,aligned:72,scalable:85,ambitious:70,succession:80,fit:92}, why:"Captive switchgear capacity to feed Boundary's data-centre backlog — a vertical-integration play on the binding constraint."},
+  {name:"Cascade High-Voltage Services", city:"Kamloops", prov:"BC", seg:"HV field service & testing", rev:"$8–15M", revMid:12, s:{proven:82,aligned:78,scalable:80,ambitious:75,succession:85,fit:88}, why:"Mirrors Axium's HV maintenance model in the BC interior — recurring-revenue density bolt-on."},
+  {name:"Prairie Instrumentation Group", city:"Saskatoon", prov:"SK", seg:"Instrumentation & calibration", rev:"$5–10M", revMid:8, s:{proven:80,aligned:80,scalable:78,ambitious:68,succession:78,fit:84}, why:"Calibration depth Sabre lacks; anchors a Saskatchewan instrumentation hub."},
+  {name:"Meridian Power Systems", city:"Calgary", prov:"AB", seg:"Power systems eng. / panels", rev:"$10–20M", revMid:15, s:{proven:85,aligned:70,scalable:82,ambitious:80,succession:60,fit:86}, why:"Control-panel engineering that extends Valid's product line upstream into higher-margin design."},
+  {name:"Cornerstone Electric Contractors", city:"Red Deer", prov:"AB", seg:"Commercial / industrial electrical", rev:"$20–35M", revMid:28, s:{proven:86,aligned:75,scalable:76,ambitious:65,succession:72,fit:80}, why:"Largest independent EC in central Alberta — a natural Summit add-on closing the Calgary–Edmonton corridor."},
+  {name:"Athabasca Field Electric", city:"Fort McMurray", prov:"AB", seg:"Industrial field electrical (energy)", rev:"$25–40M", revMid:33, s:{proven:84,aligned:68,scalable:74,ambitious:72,succession:66,fit:82}, why:"Energy-sector field crews adjacent to Sabre's industrial base; scale, but tighter cultural diligence."},
+  {name:"Kootenay Transformer Works", city:"Trail", prov:"BC", seg:"Transformer mfg & repair", rev:"$8–15M", revMid:12, s:{proven:80,aligned:82,scalable:78,ambitious:64,succession:88,fit:90}, why:"Transformer build/repair in Boundary's own backyard; strong succession signal, clean strategic fit."},
+  {name:"Selkirk Substation Co.", city:"Prince George", prov:"BC", seg:"Substation construction", rev:"$12–22M", revMid:17, s:{proven:78,aligned:74,scalable:80,ambitious:70,succession:70,fit:83}, why:"Substation EPC capacity to convert Boundary's gear into turnkey scope."},
+  {name:"Assiniboine Electrical", city:"Winnipeg", prov:"MB", seg:"Commercial electrical + service", rev:"$15–28M", revMid:22, s:{proven:82,aligned:72,scalable:72,ambitious:66,succession:75,fit:70}, why:"Manitoba beachhead — a new province with an established service book, lower direct cross-sell."},
+  {name:"Bow Valley Controls", city:"Calgary", prov:"AB", seg:"Industrial controls & automation", rev:"$6–12M", revMid:9, s:{proven:76,aligned:80,scalable:84,ambitious:82,succession:58,fit:78}, why:"Automation talent to push Valid and Sabre toward higher-margin controls; founder not yet exit-ready."},
+  {name:"Coulee Power & Instrumentation", city:"Estevan", prov:"SK", seg:"E&I services (oil & gas)", rev:"$10–18M", revMid:14, s:{proven:80,aligned:70,scalable:70,ambitious:64,succession:82,fit:81}, why:"Oilfield E&I service that slots directly into Sabre's core market; strong owner-readiness signal."},
+  {name:"Summit Pass Datacenter Electric", city:"Kelowna", prov:"BC", seg:"Data-centre electrical specialist", rev:"$8–16M", revMid:12, s:{proven:70,aligned:76,scalable:90,ambitious:88,succession:50,fit:91}, why:"Pure data-centre electrical play — highest growth and fit, thinnest track record. An incubate-and-scale bet."},
+  {name:"Frontier Line Services", city:"Grande Prairie", prov:"AB", seg:"Utility line (OH/UG)", rev:"$18–30M", revMid:24, s:{proven:80,aligned:66,scalable:74,ambitious:70,succession:68,fit:64}, why:"Utility line work — a new capability further from current portfolio fit. Watch, don't chase."},
+  {name:"Cascadia Power Solutions", city:"Spokane", prov:"US", seg:"Switchgear integration", rev:"$20–40M", revMid:33, s:{proven:84,aligned:64,scalable:86,ambitious:78,succession:55,fit:76}, why:"US Pacific-NW entry point for the 'North America' ambition; cross-border integration adds complexity."},
+  {name:"Riverstone Electric & Instrumentation", city:"Regina", prov:"SK", seg:"E&I contracting", rev:"$7–14M", revMid:11, s:{proven:78,aligned:84,scalable:76,ambitious:66,succession:84,fit:85}, why:"Values-aligned founder open to an equity roll; Saskatchewan density plus Sabre cross-sell."},
+];
+
+/* ---------- geography: city lookup + province fallbacks ---------- */
+const CITY_COORDS = {
+  // BC
+  "vancouver":[49.28,-123.12],"victoria":[48.43,-123.37],"kelowna":[49.89,-119.50],"kamloops":[50.67,-120.33],
+  "prince george":[53.92,-122.75],"trail":[49.10,-117.71],"surrey":[49.19,-122.85],"nanaimo":[49.16,-123.94],
+  "prince rupert":[54.31,-130.32],"cranbrook":[49.51,-115.77],"fort st. john":[56.25,-120.85],
+  // AB
+  "calgary":[51.05,-114.07],"edmonton":[53.55,-113.49],"red deer":[52.27,-113.81],"fort mcmurray":[56.73,-111.38],
+  "grande prairie":[55.17,-118.80],"lethbridge":[49.69,-112.84],"medicine hat":[50.04,-110.68],"sherwood park":[53.52,-113.30],
+  // SK
+  "saskatoon":[52.13,-106.67],"regina":[50.45,-104.62],"estevan":[49.14,-102.99],"prince albert":[53.20,-105.75],"moose jaw":[50.39,-105.55],
+  // MB
+  "winnipeg":[49.90,-97.14],"brandon":[49.84,-99.95],
+  // ON
+  "toronto":[43.65,-79.38],"ottawa":[45.42,-75.70],"mississauga":[43.59,-79.64],"hamilton":[43.26,-79.87],
+  "london":[42.98,-81.25],"kitchener":[43.45,-80.49],"windsor":[42.31,-83.04],"sudbury":[46.49,-80.99],
+  "thunder bay":[48.38,-89.25],"kingston":[44.23,-76.49],"markham":[43.86,-79.34],"brampton":[43.73,-79.76],
+  "barrie":[44.39,-79.69],"oshawa":[43.90,-78.86],"sarnia":[42.97,-82.40],
+  // QC
+  "montreal":[45.50,-73.57],"quebec city":[46.81,-71.21],"quebec":[46.81,-71.21],"laval":[45.57,-73.69],
+  "gatineau":[45.48,-75.70],"sherbrooke":[45.40,-71.89],"trois-rivieres":[46.34,-72.54],"saguenay":[48.43,-71.07],
+  // Atlantic
+  "moncton":[46.09,-64.78],"saint john":[45.27,-66.06],"fredericton":[45.96,-66.64],
+  "halifax":[44.65,-63.58],"sydney":[46.14,-60.19],"dartmouth":[44.67,-63.58],
+  "charlottetown":[46.24,-63.13],"st. john's":[47.56,-52.71],"st johns":[47.56,-52.71],"corner brook":[48.95,-57.95],
+  // Territories
+  "whitehorse":[60.72,-135.06],"yellowknife":[62.45,-114.37],"iqaluit":[63.75,-68.52],
+  // US (adjacent)
+  "spokane":[47.66,-117.43],"seattle":[47.61,-122.33],"bellingham":[48.75,-122.49]
+};
+const PROV_CENTROID = {
+  BC:[53.7,-125.0],AB:[54.0,-115.0],SK:[54.0,-106.0],MB:[54.5,-98.0],ON:[49.5,-85.0],QC:[52.0,-72.0],
+  NB:[46.5,-66.0],NS:[45.0,-63.0],PE:[46.4,-63.2],NL:[53.0,-60.0],YT:[64.0,-135.0],NT:[64.0,-119.0],NU:[70.0,-90.0],US:[47.5,-120.0]
+};
+const PROV_ORDER = ["BC","AB","SK","MB","ON","QC","NB","NS","PE","NL","YT","NT","NU","US"];
+
+/* ---------- factors / model ---------- */
+const FACTORS = [
+  {key:"fit",        name:"Strategic fit", desc:"Cross-sell / whitespace vs. portfolio", w:25},
+  {key:"scalable",   name:"Scalable",      desc:"Headroom + shared-services leverage",   w:20},
+  {key:"proven",     name:"Proven",        desc:"Track record & stability",              w:20},
+  {key:"succession", name:"Succession",    desc:"Owner-readiness signal (heuristic)",    w:15},
+  {key:"aligned",    name:"Aligned",       desc:"Values fit / openness to equity roll",  w:12},
+  {key:"ambitious",  name:"Ambitious",     desc:"Growth appetite of leadership",         w:8},
+];
+const DEFAULT_WEIGHTS = Object.fromEntries(FACTORS.map(f=>[f.key,f.w]));
+const T1="#0340f8",T2="#5b7fd6",T3="#9aabbf",AMBER="#d97a1f",INK="#0c1b29";
+
+/* ---------- state ---------- */
+let data = seed.map(t=>({...t}));
+let weights = {...DEFAULT_WEIGHTS};
+let provFilter = new Set(), tierFilter = new Set();
+let query="", sortKey="score", activeName=null, importMode="append";
+
+/* ---------- helpers ---------- */
+function num(v,d){ if(v===null||v===undefined||v==="") return d; const n=parseFloat(String(v).replace(/[^0-9.\-]/g,"")); return isNaN(n)?d:n; }
+function estRevMid(rev){ const m=(String(rev).match(/\d+(\.\d+)?/g)||[]).map(Number); if(!m.length) return 10; return m.length>=2?(m[0]+m[1])/2:m[0]; }
+function keyCity(c){ return (c||"").toLowerCase().split(",")[0].trim(); }
+function getLatLng(t){
+  if(typeof t.lat==="number"&&typeof t.lng==="number"&&!isNaN(t.lat)&&!isNaN(t.lng)) return [t.lat,t.lng];
+  const ck=keyCity(t.city); if(CITY_COORDS[ck]) return CITY_COORDS[ck];
+  if(PROV_CENTROID[t.prov]) return PROV_CENTROID[t.prov];
+  return null;
+}
+function totalWeight(){ return FACTORS.reduce((a,f)=>a+weights[f.key],0); }
+function composite(t){ const tot=totalWeight()||1; let s=0; for(const f of FACTORS) s+=t.s[f.key]*(weights[f.key]/tot); return s; }
+function tierFor(s){ return s>=78?1:s>=68?2:3; }
+function tierHex(n){ return n===1?T1:n===2?T2:T3; }
+
+/* ---------- sliders ---------- */
+const slidersEl=document.getElementById("sliders");
+FACTORS.forEach(f=>{
+  const wrap=document.createElement("label"); wrap.className="slider";
+  wrap.innerHTML=`<div class="top"><span class="name">${f.name}<span class="desc">${f.desc}</span></span>
+    <span class="pct" id="pct-${f.key}">${weights[f.key]}%</span></div>
+    <input type="range" min="0" max="40" value="${weights[f.key]}" id="rng-${f.key}" aria-label="${f.name} weight">`;
+  slidersEl.appendChild(wrap);
+});
+FACTORS.forEach(f=>{ const r=document.getElementById("rng-"+f.key); setFill(r);
+  r.addEventListener("input",()=>{ weights[f.key]=+r.value; document.getElementById("pct-"+f.key).textContent=r.value+"%"; setFill(r); renderAll(); }); });
+function setFill(r){ r.style.setProperty("--fill",(r.value/40*100)+"%"); }
+document.getElementById("reset").addEventListener("click",()=>applyPreset(DEFAULT_WEIGHTS));
+document.getElementById("preset-fit").addEventListener("click",()=>applyPreset({fit:34,scalable:22,proven:16,succession:10,aligned:10,ambitious:8}));
+document.getElementById("preset-succ").addEventListener("click",()=>applyPreset({fit:18,scalable:14,proven:18,succession:34,aligned:10,ambitious:6}));
+function applyPreset(p){ weights={...p}; FACTORS.forEach(f=>{ const r=document.getElementById("rng-"+f.key); r.value=weights[f.key];
+  document.getElementById("pct-"+f.key).textContent=weights[f.key]+"%"; setFill(r); }); renderAll(); }
+
+/* ---------- tier chips (static) + province chips (dynamic) ---------- */
+const TIERS=[{k:1,label:"Tier 1"},{k:2,label:"Tier 2"},{k:3,label:"Tier 3"}];
+const tierChips=document.getElementById("tier-chips");
+TIERS.forEach(t=>{ const b=document.createElement("button"); b.className="chip"; b.textContent=t.label; b.setAttribute("aria-pressed","false");
+  b.addEventListener("click",()=>{ if(tierFilter.has(t.k)){tierFilter.delete(t.k);b.setAttribute("aria-pressed","false");}
+    else{tierFilter.add(t.k);b.setAttribute("aria-pressed","true");} renderAll(); });
+  tierChips.appendChild(b); });
+
+const provChipsEl=document.getElementById("prov-chips");
+function renderProvChips(){
+  const present=new Set(data.map(t=>t.prov).filter(Boolean));
+  const ordered=PROV_ORDER.filter(p=>present.has(p)).concat([...present].filter(p=>!PROV_ORDER.includes(p)));
+  [...provFilter].forEach(p=>{ if(!present.has(p)) provFilter.delete(p); });
+  provChipsEl.innerHTML="";
+  ordered.forEach(p=>{ const b=document.createElement("button"); b.className="chip"; b.textContent=p;
+    b.setAttribute("aria-pressed", provFilter.has(p)?"true":"false");
+    b.addEventListener("click",()=>{ if(provFilter.has(p)){provFilter.delete(p);b.setAttribute("aria-pressed","false");}
+      else{provFilter.add(p);b.setAttribute("aria-pressed","true");} renderAll(); });
+    provChipsEl.appendChild(b); });
+}
+
+document.getElementById("q").addEventListener("input",e=>{query=e.target.value.toLowerCase();renderAll();});
+document.getElementById("sort").addEventListener("change",e=>{sortKey=e.target.value;renderAll();});
+
+/* ---------- compute / filter / sort ---------- */
+function processed(){
+  let rows=data.map(t=>{ const score=composite(t); return {...t,score,tier:tierFor(score)}; });
+  rows=rows.filter(t=>{
+    if(provFilter.size && !provFilter.has(t.prov)) return false;
+    if(tierFilter.size && !tierFilter.has(t.tier)) return false;
+    if(query){ const hay=(t.name+" "+t.city+" "+t.seg).toLowerCase(); if(!hay.includes(query)) return false; }
+    return true;
+  });
+  rows.sort((a,b)=>{
+    if(sortKey==="name") return a.name.localeCompare(b.name);
+    if(sortKey==="succession") return b.s.succession-a.s.succession;
+    if(sortKey==="revMid") return (b.revMid||0)-(a.revMid||0);
+    return b.score-a.score;
+  });
+  return rows;
+}
+
+/* ---------- board ---------- */
+const boardEl=document.getElementById("board");
+const FBARS=[["fit","Fit"],["scalable","Scale"],["proven","Proven"],["succession","Succ."],["aligned","Aligned"],["ambitious","Ambit."]];
+function renderBoard(rows){
+  boardEl.innerHTML="";
+  if(!rows.length){ boardEl.innerHTML='<div class="empty">No targets match these filters. Clear a chip or the search to widen the scan.</div>'; return; }
+  rows.forEach((t,i)=>{
+    const el=document.createElement("article");
+    el.className="row"+(t.name===activeName?" active":"");
+    el.tabIndex=0; el.setAttribute("role","button"); el.setAttribute("data-name",t.name);
+    el.setAttribute("aria-expanded", t.name===activeName?"true":"false");
+    const succHi=t.s.succession>=80;
+    const bars=FBARS.map(([k,lab])=>`<div class="bar"><span class="bl">${lab}</span>
+      <span class="track"><span class="fillb" style="width:${t.s[k]}%"></span></span><span class="bv">${t.s[k]}</span></div>`).join("");
+    el.innerHTML=`<div class="head">
+        <span class="rank">${String(i+1).padStart(2,"0")}</span>
+        <span class="tier" style="background:${tierHex(t.tier)}" title="Tier ${t.tier}"></span>
+        <div><h4>${t.name}${t.partial?'<span class="partial">partial</span>':''}</h4>
+          <span class="loc">${t.city||"—"} · ${t.prov||"?"} · ${t.rev||"n/a"}</span></div>
+        <div class="meta"><span class="succ ${succHi?"hi":""}">Succession ${t.s.succession}</span>
+          <span class="score" style="color:${tierHex(t.tier)}">${Math.round(t.score)}</span></div>
+      </div>
+      <div class="seg">${t.seg||""}</div>
+      <div class="detail"><p class="rationale">${t.why||"<em>No rationale yet — add a one-line why.</em>"}</p>
+        <div class="bars">${bars}</div></div>`;
+    const toggle=()=>{ activeName=activeName===t.name?null:t.name; renderAll(); };
+    el.addEventListener("click",toggle);
+    el.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){e.preventDefault();toggle();} });
+    el.addEventListener("mouseenter",()=>highlightMarker(t.name,true));
+    el.addEventListener("mouseleave",()=>highlightMarker(t.name,false));
+    boardEl.appendChild(el);
+  });
+}
+
+/* ---------- Leaflet map ---------- */
+let lmap=null, markersLayer=null, markersByName={}, didFit=false;
+function initMap(){
+  const el=document.getElementById("map");
+  if(!window.L){ el.innerHTML='<div class="map-fallback">Map library didn’t load — check the connection and refresh. The pipeline list works regardless.</div>'; return; }
+  lmap=L.map(el,{scrollWheelZoom:false,zoomControl:true,minZoom:2}).setView([57,-96],3);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    {subdomains:"abcd",maxZoom:19,attribution:'&copy; OpenStreetMap &copy; CARTO'}).addTo(lmap);
+  markersLayer=L.layerGroup().addTo(lmap);
+  setTimeout(()=>lmap.invalidateSize(),250);
+  window.addEventListener("resize",()=>lmap&&lmap.invalidateSize());
+}
+function renderMap(rows){
+  if(!lmap) return;
+  markersLayer.clearLayers(); markersByName={};
+  const pts=[];
+  rows.forEach(t=>{
+    const ll=getLatLng(t); if(!ll) return;
+    const r=(t.revMid||10)>=22?9:(t.revMid||10)>=12?7:5;
+    const succ=t.s.succession>=80;
+    const m=L.circleMarker(ll,{radius:r,color:succ?AMBER:"#ffffff",weight:succ?2.5:1.5,
+      fillColor:tierHex(t.tier),fillOpacity:.9});
+    m._baseR=r;
+    m.bindTooltip(`${t.name} · ${Math.round(t.score)}`,{direction:"top",offset:[0,-2]});
+    m.on("click",()=>{ activeName=t.name; renderAll(); scrollToRow(t.name); });
+    m.on("mouseover",()=>{ m.setRadius(r+3); highlightRow(t.name); });
+    m.on("mouseout",()=>{ m.setRadius(r); highlightRow(null); });
+    m.addTo(markersLayer); markersByName[t.name]=m; pts.push(ll);
+  });
+  document.getElementById("map-count").textContent=pts.length+" plotted";
+  if(!didFit && pts.length){ lmap.fitBounds(pts,{padding:[30,30],maxZoom:6}); didFit=true; }
+}
+function highlightMarker(name,on){ const m=markersByName[name]; if(!m) return; m.setRadius(on?m._baseR+3:m._baseR); if(on)m.openTooltip(); else m.closeTooltip(); }
+function highlightRow(name){ [...boardEl.children].forEach(ch=>ch.classList.toggle("hl", !!(name&&ch.getAttribute("data-name")===name))); }
+function scrollToRow(name){ const row=[...boardEl.children].find(ch=>ch.getAttribute("data-name")===name); if(row) row.scrollIntoView({block:"center",behavior:"smooth"}); }
+
+/* ---------- orchestration ---------- */
+function renderAll(){
+  const rows=processed(), tot=totalWeight();
+  document.getElementById("total").textContent = tot===100?"weights = 100%":`weights = ${tot}% (auto-normalised)`;
+  document.getElementById("count").textContent = `${rows.length} of ${data.length} shown · ${rows.filter(r=>r.tier===1).length} in Tier 1`;
+  renderBoard(rows); renderMap(rows);
+}
+
+/* ===========================================================================
+   DATA IMPORT — JSON / CSV / Markdown table, in-browser
+   =========================================================================== */
+function setStatus(msg,err){ const s=document.getElementById("status"); s.textContent=msg; s.classList.toggle("err",!!err); }
+
+function rowToTarget(o){
+  const get=(...keys)=>{ for(const k of keys){ for(const ok in o){ if(ok.toLowerCase().trim()===k){ return o[ok]; } } } return undefined; };
+  const sObj=o.s&&typeof o.s==="object"?o.s:null;
+  const sc=f=> sObj?sObj[f]:get(f);
+  const s={}; let partial=false;
+  ["proven","aligned","scalable","ambitious","succession","fit"].forEach(f=>{ const v=num(sc(f),null); if(v===null){s[f]=50;partial=true;} else s[f]=Math.max(0,Math.min(100,v)); });
+  const name=(get("name","company")||"").toString().trim();
+  const prov=(get("prov","province")||"").toString().toUpperCase().trim();
+  const city=(get("city","town","location")||"").toString().trim();
+  const rev=(get("rev","revenue")||"").toString().trim();
+  let revMid=num(get("revmid","rev_mid"),null); if(revMid===null) revMid=estRevMid(rev);
+  const lat=num(get("lat","latitude"),null), lng=num(get("lng","lon","long","longitude"),null);
+  const why=(get("why","rationale","notes","thesis")||"").toString().trim();
+  const seg=(get("seg","segment","sector","category")||"").toString().trim();
+  return {name,city,prov,seg,rev,revMid,lat:lat===null?undefined:lat,lng:lng===null?undefined:lng,s,why,partial};
+}
+
+function parseCSV(text){
+  const rows=[]; let i=0,field="",row=[],inq=false;
+  const pushF=()=>{row.push(field);field="";}, pushR=()=>{rows.push(row);row=[];};
+  while(i<text.length){ const c=text[i];
+    if(inq){ if(c==='"'){ if(text[i+1]==='"'){field+='"';i++;} else inq=false; } else field+=c; }
+    else { if(c==='"') inq=true; else if(c===",") pushF(); else if(c==="\n"){pushF();pushR();} else if(c==="\r"){} else field+=c; }
+    i++; }
+  if(field.length||row.length){ pushF(); pushR(); }
+  const clean=rows.filter(r=>r.some(x=>x.trim()!==""));
+  if(clean.length<2) return [];
+  const headers=clean[0].map(h=>h.trim());
+  return clean.slice(1).map(r=>{ const o={}; headers.forEach((h,idx)=>o[h]=(r[idx]||"").trim()); return o; });
+}
+function parseMarkdownTable(text){
+  const lines=text.split("\n").map(l=>l.trim()).filter(l=>l.includes("|"));
+  const isSep=l=>l.includes("-")&&/^[\s:|\-]+$/.test(l);
+  const cells=lines.filter(l=>!isSep(l)).map(l=>{ let s=l; if(s.startsWith("|"))s=s.slice(1); if(s.endsWith("|"))s=s.slice(0,-1); return s.split("|").map(c=>c.trim()); });
+  if(cells.length<2) return [];
+  const headers=cells[0];
+  return cells.slice(1).map(r=>{ const o={}; headers.forEach((h,idx)=>o[h]=(r[idx]||"").trim()); return o; });
+}
+function parseJSONData(text){ const d=JSON.parse(text); return Array.isArray(d)?d:(d.targets||d.data||[]); }
+
+function detectAndParse(text,filename){
+  const ext=(filename||"").toLowerCase().split(".").pop(), trimmed=text.trim();
+  let raw;
+  if(ext==="json"||((ext!=="csv"&&ext!=="md"&&ext!=="markdown")&&(trimmed.startsWith("[")||trimmed.startsWith("{")))) raw=parseJSONData(text);
+  else if(ext==="md"||ext==="markdown"||(trimmed.includes("|")&&/\|[\s:|\-]*-{2,}/.test(text))) raw=parseMarkdownTable(text);
+  else raw=parseCSV(text);
+  return raw.map(rowToTarget).filter(t=>t.name);
+}
+
+function applyData(newTargets,mode){
+  if(!newTargets.length){ setStatus("No valid rows found — check headers and format. A 'name' column is required.",true); return; }
+  if(mode==="replace") data=newTargets;
+  else { const map=new Map(data.map(t=>[t.name.toLowerCase(),t])); newTargets.forEach(t=>map.set(t.name.toLowerCase(),t)); data=[...map.values()]; }
+  didFit=false; renderProvChips(); renderAll();
+  const partial=data.filter(t=>t.partial).length, provs=new Set(data.map(t=>t.prov)).size;
+  setStatus(`Loaded ${newTargets.length} target${newTargets.length>1?"s":""} (${mode}). Now ${data.length} total across ${provs} province${provs>1?"s":""}${partial?`, ${partial} flagged partial`:""}.`);
+}
+
+/* file + paste */
+document.getElementById("file").addEventListener("change",e=>{
+  const f=e.target.files[0]; if(!f) return; const r=new FileReader();
+  r.onload=()=>{ try{ applyData(detectAndParse(r.result,f.name),importMode);}catch(err){ setStatus("Could not parse that file: "+err.message,true);} };
+  r.onerror=()=>setStatus("Could not read that file.",true);
+  r.readAsText(f); e.target.value="";
+});
+document.getElementById("paste-toggle").addEventListener("click",()=>document.getElementById("paste-area").classList.toggle("open"));
+document.getElementById("paste-load").addEventListener("click",()=>{ const t=document.getElementById("paste-text").value;
+  if(!t.trim()){ setStatus("Paste some data first.",true); return; }
+  try{ applyData(detectAndParse(t,""),importMode);}catch(err){ setStatus("Could not parse that text: "+err.message,true);} });
+
+/* mode toggle */
+const mA=document.getElementById("mode-append"), mR=document.getElementById("mode-replace");
+mA.addEventListener("click",()=>{importMode="append";mA.setAttribute("aria-pressed","true");mR.setAttribute("aria-pressed","false");});
+mR.addEventListener("click",()=>{importMode="replace";mR.setAttribute("aria-pressed","true");mA.setAttribute("aria-pressed","false");});
+
+/* templates + export */
+const TPL={
+  csv:`name,city,prov,seg,rev,lat,lng,proven,aligned,scalable,ambitious,succession,fit,why\nExample Electric Ltd.,Toronto,ON,Commercial electrical,$10–20M,,,80,75,78,70,72,82,"One-line reason this is a fit."`,
+  md:`| name | city | prov | seg | rev | proven | aligned | scalable | ambitious | succession | fit | why |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n| Example Electric Ltd. | Toronto | ON | Commercial electrical | $10–20M | 80 | 75 | 78 | 70 | 72 | 82 | One-line reason this is a fit. |`,
+  json:JSON.stringify([{name:"Example Electric Ltd.",city:"Toronto",prov:"ON",seg:"Commercial electrical",rev:"$10–20M",lat:null,lng:null,s:{proven:80,aligned:75,scalable:78,ambitious:70,succession:72,fit:82},why:"One-line reason this is a fit."}],null,2)
+};
+const TYPE={csv:"text/csv",md:"text/markdown",json:"application/json"};
+function download(filename,content,type){ const b=new Blob([content],{type}); const u=URL.createObjectURL(b);
+  const a=document.createElement("a"); a.href=u; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(u); }
+const tplToggle=document.getElementById("tpl-toggle"), tplMenu=document.getElementById("tpl-menu");
+tplToggle.addEventListener("click",e=>{ e.stopPropagation(); tplMenu.classList.toggle("open"); });
+document.addEventListener("click",()=>tplMenu.classList.remove("open"));
+tplMenu.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ const k=b.getAttribute("data-tpl");
+  download(`ampere-targets-template.${k}`,TPL[k],TYPE[k]); tplMenu.classList.remove("open"); }));
+document.getElementById("export").addEventListener("click",()=>{
+  const out=data.map(t=>({name:t.name,city:t.city,prov:t.prov,seg:t.seg,rev:t.rev,revMid:t.revMid,
+    lat:t.lat??null,lng:t.lng??null,s:t.s,why:t.why}));
+  download("ampere-targets.json",JSON.stringify(out,null,2),"application/json");
+});
+
+/* ---------- boot ---------- */
+renderProvChips();
+initMap();
+renderAll();
+</script>
+</body>
+</html>
